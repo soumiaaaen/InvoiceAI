@@ -1,0 +1,6 @@
+@SmartFactureTracker_HostAddress = http://localhost:5136
+
+GET {{SmartFactureTracker_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
