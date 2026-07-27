@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Wallet, FileStack, TrendingUp, Tags } from "lucide-react";
+import { authFetch } from "@/lib/auth";
 
 // A ajuster selon l'URL reelle de ton backend ASP.NET Core
 const API_BASE_URL = "http://localhost:5136";
@@ -80,7 +81,7 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${API_BASE_URL}/api/dashboard/summary`, {
+        const res = await authFetch(`${API_BASE_URL}/api/dashboard/summary`, {
           signal: controller.signal,
         });
         if (!res.ok) throw new Error("Impossible de charger les donnees du tableau de bord.");

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UploadCloud, Sparkles, CheckCircle2 } from "lucide-react";
+import { authFetch } from "@/lib/auth";
 
 const CATEGORIES = [
   "Matieres premieres",
@@ -28,16 +29,6 @@ type FactureForm = {
   montantTva: string;
   montantTtc: string;
   category: string;
-};
-
-const EMPTY_FORM: FactureForm = {
-  merchant: "",
-  date: "",
-  montantHt: "",
-  tvaRate: "",
-  montantTva: "",
-  montantTtc: "",
-  category: "Autre",
 };
 
 // A ajuster selon l'URL reelle de ton backend ASP.NET Core
@@ -75,7 +66,7 @@ export default function UploadFacturePage() {
       const formData = new FormData();
       formData.append("file", selected);
 
-      const res = await fetch(`${API_BASE_URL}/api/factures/extract`, {
+      const res = await authFetch(`${API_BASE_URL}/api/factures/extract`, {
         method: "POST",
         body: formData,
       });
@@ -119,7 +110,6 @@ export default function UploadFacturePage() {
   const handleConfirm = async () => {
     if (!form || !file) return;
 
-    // Validation simple avant envoi
     if (!form.merchant.trim()) {
       setError("Le nom du fournisseur est requis.");
       return;
@@ -133,10 +123,6 @@ export default function UploadFacturePage() {
     setError(null);
 
     try {
-      // multipart/form-data : le backend attend les champs texte
-      // (ConfirmFactureRequest via [FromForm]) + le fichier "file"
-      // pour pouvoir le sauvegarder dans uploads/ en meme temps
-      // que la facture est enregistree en base.
       const formData = new FormData();
       formData.append("Merchant", form.merchant);
       formData.append("Date", form.date);
@@ -147,10 +133,8 @@ export default function UploadFacturePage() {
       formData.append("Category", form.category);
       formData.append("file", file);
 
-      const res = await fetch(`${API_BASE_URL}/api/factures`, {
+      const res = await authFetch(`${API_BASE_URL}/api/factures`, {
         method: "POST",
-        // Ne PAS fixer Content-Type ici - le navigateur ajoute
-        // automatiquement le bon "multipart/form-data; boundary=..."
         body: formData,
       });
 

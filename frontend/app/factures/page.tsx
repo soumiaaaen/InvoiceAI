@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Search, Pencil, Trash2, X } from "lucide-react";
+import { authFetch } from "@/lib/auth";
 
 // A ajuster selon l'URL reelle de ton backend ASP.NET Core
 const API_BASE_URL = "http://localhost:5136";
@@ -71,7 +72,6 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-// Convertit une date ISO (avec heure) en "YYYY-MM-DD" pour un <input type="date">
 function toDateInputValue(iso: string) {
   return iso.slice(0, 10);
 }
@@ -96,18 +96,15 @@ export default function FacturesPage() {
 
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  // Debounce la recherche texte pour eviter un fetch a chaque frappe
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(search), 400);
     return () => clearTimeout(timeout);
   }, [search]);
 
-  // Charge les options de filtres une seule fois (categories/fournisseurs
-  // reellement presents en base)
   useEffect(() => {
     async function loadFilters() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/factures/filters`);
+        const res = await authFetch(`${API_BASE_URL}/api/factures/filters`);
         if (res.ok) {
           const data: FilterOptions = await res.json();
           setFilterOptions(data);
@@ -129,7 +126,7 @@ export default function FacturesPage() {
       if (month) params.set("month", month);
       if (fournisseur) params.set("fournisseur", fournisseur);
 
-      const res = await fetch(`${API_BASE_URL}/api/factures?${params.toString()}`, { signal });
+      const res = await authFetch(`${API_BASE_URL}/api/factures?${params.toString()}`, { signal });
       if (!res.ok) throw new Error("Impossible de charger les factures.");
       const data: Facture[] = await res.json();
       setFactures(data);
@@ -142,7 +139,6 @@ export default function FacturesPage() {
     }
   }
 
-  // Recharge la liste des factures a chaque changement de filtre
   useEffect(() => {
     const controller = new AbortController();
     loadFactures(controller.signal);
@@ -199,7 +195,7 @@ export default function FacturesPage() {
     setEditError(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/factures/${editingId}`, {
+      const res = await authFetch(`${API_BASE_URL}/api/factures/${editingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -235,7 +231,7 @@ export default function FacturesPage() {
 
     setDeletingId(f.id);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/factures/${f.id}`, { method: "DELETE" });
+      const res = await authFetch(`${API_BASE_URL}/api/factures/${f.id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
         throw new Error(err?.error || "Echec de la suppression.");
