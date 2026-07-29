@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -40,14 +41,12 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 h-screen fixed top-0 left-0 bg-blue-700 text-white flex flex-col shrink-0 overflow-y-auto">
-      <div className="px-6 py-6 flex items-center gap-3 border-b border-blue-600/40">
-        <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center">
-          <FileText size={20} />
+      <div className="px-6 py-5 flex items-center gap-3 border-b border-blue-600/40">
+        <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden shrink-0">
+          <Image src="/logo.png" alt="InvoiceAI" width={32} height={32} className="object-contain" />
         </div>
-        <span className="font-semibold text-lg leading-tight">
-          Smart Facture
-          <br />
-          Tracker
+        <span className="font-semibold text-lg leading-tight text-white">
+          Invoice <span className="text-blue">AI</span>
         </span>
       </div>
 

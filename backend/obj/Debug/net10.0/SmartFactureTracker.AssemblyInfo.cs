@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SmartFactureTracker")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+63e24571460907464043cc04da606f98eae930cd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a36de0894087fd1e5c2c9111b4b852df26b6fa81")]
 [assembly: System.Reflection.AssemblyProductAttribute("SmartFactureTracker")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SmartFactureTracker")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

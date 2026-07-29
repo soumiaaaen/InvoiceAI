@@ -322,3 +322,4 @@ C:\Users\espacegamers.ma\SmartFactureTracker\backend\obj\Debug\net10.0\SmartFact
 C:\Users\espacegamers.ma\SmartFactureTracker\backend\obj\Debug\net10.0\ref\SmartFactureTracker.dll
 C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\BCrypt-Net-Next.dll
 C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+C:\Users\espacegamers.ma\SmartFactureTracker\backend\obj\Debug\net10.0\SmartFactureTracker.sourcelink.json
