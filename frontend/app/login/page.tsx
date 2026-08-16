@@ -33,7 +33,7 @@ export default function LoginPage() {
 
       const data = await res.json();
       saveAuth(data.token, { email: data.email, fullName: data.fullName });
-      router.push("/");
+      router.push("/dashboard");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur inconnue.");
     } finally {

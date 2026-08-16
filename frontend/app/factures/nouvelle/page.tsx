@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { UploadCloud, Sparkles, CheckCircle2 } from "lucide-react";
+import { UploadCloud, Sparkles, CheckCircle2, ExternalLink, FileText } from "lucide-react";
 import { authFetch } from "@/lib/auth";
 
 const CATEGORIES = [
@@ -28,11 +28,18 @@ type FactureForm = {
   tvaRate: string;
   montantTva: string;
   montantTtc: string;
+  numeroFacture: string;
   category: string;
 };
 
 // A ajuster selon l'URL reelle de ton backend ASP.NET Core
 const API_BASE_URL = "http://localhost:5136";
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
 
 export default function UploadFacturePage() {
   const router = useRouter();
@@ -45,6 +52,16 @@ export default function UploadFacturePage() {
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState<FactureForm | null>(null);
 
+  // Garde une reference vers l'URL objet courante pour pouvoir la revoquer
+  // proprement (evite les fuites memoire) des qu'un nouveau fichier arrive
+  // ou que le composant est demonte.
+  const previewUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    };
+  }, []);
+
   const updateField = (key: keyof FactureForm, value: string) => {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
@@ -55,11 +72,15 @@ export default function UploadFacturePage() {
     setForm(null);
     setSaved(false);
 
-    if (selected.type.startsWith("image/")) {
-      setPreviewUrl(URL.createObjectURL(selected));
-    } else {
-      setPreviewUrl(null);
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
     }
+    // PDF et image se previsualisent tous les deux via un object URL -
+    // seul le rendu (iframe vs img) differe plus bas.
+    const isPreviewable = selected.type.startsWith("image/") || selected.type === "application/pdf";
+    const url = isPreviewable ? URL.createObjectURL(selected) : null;
+    previewUrlRef.current = url;
+    setPreviewUrl(url);
 
     setLoading(true);
     try {
@@ -84,6 +105,7 @@ export default function UploadFacturePage() {
         tvaRate: data.tva_rate?.toString() ?? "",
         montantTva: data.montant_tva?.toString() ?? "",
         montantTtc: data.montant_ttc?.toString() ?? "",
+        numeroFacture: data.numero_facture ?? "",
         category: data.category ?? "Autre",
       });
     } catch (e) {
@@ -100,6 +122,8 @@ export default function UploadFacturePage() {
   };
 
   const handleCancel = () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = null;
     setFile(null);
     setPreviewUrl(null);
     setForm(null);
@@ -130,6 +154,7 @@ export default function UploadFacturePage() {
       formData.append("TvaRate", form.tvaRate || "0");
       formData.append("MontantTva", form.montantTva || "0");
       formData.append("MontantTtc", form.montantTtc || "0");
+      formData.append("NumeroFacture", form.numeroFacture || "");
       formData.append("Category", form.category);
       formData.append("file", file);
 
@@ -160,19 +185,22 @@ export default function UploadFacturePage() {
     form.montantTtc !== "" &&
     Math.abs(parseFloat(form.montantHt) - parseFloat(form.montantTtc)) < 0.01;
 
+  const isPdf = file?.type === "application/pdf";
+  const isImage = file?.type.startsWith("image/");
+
   return (
     <div className="max-w-4xl">
-      <h1 className="text-2xl font-bold mb-6">Ajouter une facture</h1>
+      <h1 className="font-display text-2xl font-semibold text-navy mb-6">Ajouter une facture</h1>
 
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
-        className="border-2 border-dashed border-blue-300 rounded-xl bg-blue-50/40 py-16 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-blue-50 transition-colors"
+        className="border-2 border-dashed border-primary/30 rounded-2xl bg-accent-tint/40 py-16 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-accent-tint/60 transition-colors"
         onClick={() => document.getElementById("file-input")?.click()}
       >
-        <UploadCloud className="text-blue-500 mb-3" size={36} />
-        <p className="font-medium">Glissez votre facture ici</p>
-        <p className="text-sm text-gray-500">ou cliquez pour parcourir (PDF, JPG, PNG)</p>
+        <UploadCloud className="text-primary mb-3" size={36} />
+        <p className="font-medium text-navy">Glissez votre facture ici</p>
+        <p className="text-sm text-foreground/50">ou cliquez pour parcourir (PDF, JPG, PNG)</p>
         <input
           id="file-input"
           type="file"
@@ -183,17 +211,17 @@ export default function UploadFacturePage() {
       </div>
 
       {loading && (
-        <p className="text-sm text-blue-600 mt-4">Analyse de la facture en cours...</p>
+        <p className="text-sm text-primary mt-4">Analyse de la facture en cours...</p>
       )}
 
       {error && (
-        <p className="text-sm text-red-600 mt-4 bg-red-50 border border-red-100 rounded-lg px-4 py-2">
+        <p className="text-sm text-danger mt-4 bg-danger-tint border border-danger/20 rounded-xl px-4 py-2">
           {error}
         </p>
       )}
 
       {saved && (
-        <div className="flex items-center gap-2 text-sm text-green-700 mt-4 bg-green-50 border border-green-100 rounded-lg px-4 py-2">
+        <div className="flex items-center gap-2 text-sm text-success mt-4 bg-success-tint border border-success/20 rounded-xl px-4 py-2">
           <CheckCircle2 size={16} />
           Facture enregistree - redirection...
         </div>
@@ -201,24 +229,53 @@ export default function UploadFacturePage() {
 
       {form && !saved && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-          <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-3">
-            {previewUrl ? (
+          <div className="card p-3">
+            {/* Barre d'info : nom du fichier, taille, ouverture en plein onglet */}
+            {file && (
+              <div className="flex items-center justify-between px-2 py-1.5 mb-2 text-xs text-foreground/50">
+                <span className="flex items-center gap-1.5 truncate">
+                  <FileText size={13} className="shrink-0" />
+                  <span className="truncate">{file.name}</span>
+                  <span className="shrink-0">· {formatFileSize(file.size)}</span>
+                </span>
+                {previewUrl && (
+                  <a
+                    href={previewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-primary hover:underline shrink-0 ml-2"
+                  >
+                    <ExternalLink size={13} />
+                    Ouvrir
+                  </a>
+                )}
+              </div>
+            )}
+
+            {isPdf && previewUrl ? (
+              <iframe
+                src={previewUrl}
+                title="Apercu facture"
+                className="w-full rounded-lg border border-[var(--color-border)]"
+                style={{ height: 520 }}
+              />
+            ) : isImage && previewUrl ? (
               <img src={previewUrl} alt="Apercu facture" className="rounded-lg w-full" />
             ) : (
-              <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
+              <div className="h-64 flex items-center justify-center text-foreground/40 text-sm">
                 {file?.name}
               </div>
             )}
           </div>
 
           <div>
-            <div className="flex items-center gap-2 text-blue-600 bg-blue-50 rounded-lg px-3 py-2 text-sm mb-4 w-fit">
+            <div className="flex items-center gap-2 text-primary bg-accent-tint rounded-xl px-3 py-2 text-sm mb-4 w-fit">
               <Sparkles size={16} />
               Extrait automatiquement par IA - veuillez verifier
             </div>
 
             {needsReview && (
-              <div className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
+              <div className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-4">
                 La TVA n'a pas ete detectee automatiquement - verifiez les montants avant de confirmer.
               </div>
             )}
@@ -228,6 +285,11 @@ export default function UploadFacturePage() {
                 label="Fournisseur"
                 value={form.merchant}
                 onChange={(v) => updateField("merchant", v)}
+              />
+              <Field
+                label="N° Facture"
+                value={form.numeroFacture}
+                onChange={(v) => updateField("numeroFacture", v)}
               />
               <Field
                 label="Date"
@@ -263,11 +325,11 @@ export default function UploadFacturePage() {
                 suffix="MAD"
               />
               <div className="col-span-2">
-                <label className="text-sm text-gray-600 block mb-1">Categorie</label>
+                <label className="text-sm text-foreground/60 block mb-1">Categorie</label>
                 <select
                   value={form.category}
                   onChange={(e) => updateField("category", e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-[var(--color-border)] rounded-xl px-3 py-2 text-sm"
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -280,14 +342,14 @@ export default function UploadFacturePage() {
               <button
                 onClick={handleCancel}
                 disabled={saving}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-[var(--color-border)] text-sm hover:bg-[var(--color-background)] disabled:opacity-50"
               >
                 Annuler
               </button>
               <button
                 onClick={handleConfirm}
                 disabled={saving}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {saving ? "Enregistrement..." : "Confirmer"}
               </button>
@@ -314,17 +376,17 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-sm text-gray-600 block mb-1">{label}</label>
+      <label className="text-sm text-foreground/60 block mb-1">{label}</label>
       <div className="relative">
         <input
           type={type}
           step={type === "number" ? "0.01" : undefined}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+          className="w-full border border-[var(--color-border)] rounded-xl px-3 py-2 text-sm font-figures"
         />
         {suffix && (
-          <span className="absolute right-3 top-2 text-xs text-gray-400">{suffix}</span>
+          <span className="absolute right-3 top-2 text-xs text-foreground/40">{suffix}</span>
         )}
       </div>
     </div>

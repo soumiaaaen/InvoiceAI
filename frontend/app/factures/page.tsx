@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Pencil, Trash2, X } from "lucide-react";
+import { Search, Pencil, Trash2, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { authFetch } from "@/lib/auth";
+import AnimatedList from "@/components/Animatedlist";
 
 // A ajuster selon l'URL reelle de ton backend ASP.NET Core
 const API_BASE_URL = "http://localhost:5136";
+
+const PAGE_SIZE = 5;
 
 const MONTHS = [
   { value: "1", label: "Janvier" },
@@ -46,6 +49,7 @@ type Facture = {
   tvaRate: number;
   montantTva: number;
   montantTtc: number;
+  numeroFacture: string | null;
   category: string;
 };
 
@@ -61,8 +65,13 @@ type EditForm = {
   tvaRate: string;
   montantTva: string;
   montantTtc: string;
+  numeroFacture: string;
   category: string;
 };
+
+// Colonnes partagees entre l'en-tete et chaque ligne de la liste, pour
+// garder l'alignement sans utiliser une vraie balise <table>.
+const ROW_GRID = "grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1.4fr_0.8fr]";
 
 function formatMad(value: number) {
   return `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} MAD`;
@@ -88,6 +97,8 @@ export default function FacturesPage() {
   const [category, setCategory] = useState("");
   const [month, setMonth] = useState("");
   const [fournisseur, setFournisseur] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
@@ -146,6 +157,13 @@ export default function FacturesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, category, month, fournisseur]);
 
+  // Revient a la page 1 a chaque changement de filtre/recherche, sinon
+  // on pourrait se retrouver sur une page vide si le nouveau resultat
+  // a moins de pages que la position actuelle.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, category, month, fournisseur]);
+
   const hasActiveFilters = search || category || month || fournisseur;
 
   const clearFilters = () => {
@@ -154,6 +172,12 @@ export default function FacturesPage() {
     setMonth("");
     setFournisseur("");
   };
+
+  const totalPages = Math.max(1, Math.ceil(factures.length / PAGE_SIZE));
+  const paginatedFactures = factures.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   const openEdit = (f: Facture) => {
     setEditingId(f.id);
@@ -165,6 +189,7 @@ export default function FacturesPage() {
       tvaRate: f.tvaRate.toString(),
       montantTva: f.montantTva.toString(),
       montantTtc: f.montantTtc.toString(),
+      numeroFacture: f.numeroFacture ?? "",
       category: f.category,
     });
   };
@@ -205,6 +230,7 @@ export default function FacturesPage() {
           tvaRate: parseFloat(editForm.tvaRate) || 0,
           montantTva: parseFloat(editForm.montantTva) || 0,
           montantTtc: parseFloat(editForm.montantTtc) || 0,
+          numeroFacture: editForm.numeroFacture,
           category: editForm.category,
         }),
       });
@@ -247,25 +273,25 @@ export default function FacturesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Factures</h1>
-        <p className="text-gray-500 text-sm">Toutes vos factures enregistrees</p>
+        <h1 className="font-display text-2xl font-semibold text-navy">Factures</h1>
+        <p className="text-foreground/50 text-sm">Toutes vos factures enregistrees</p>
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[220px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/40" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher un fournisseur..."
-            className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm"
+            className="w-full border border-[var(--color-border)] rounded-xl pl-9 pr-3 py-2 text-sm bg-white"
           />
         </div>
 
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+          className="border border-[var(--color-border)] rounded-xl px-3 py-2 text-sm bg-white"
         >
           <option value="">Toutes les categories</option>
           {filterOptions.categories.map((c) => (
@@ -276,7 +302,7 @@ export default function FacturesPage() {
         <select
           value={month}
           onChange={(e) => setMonth(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+          className="border border-[var(--color-border)] rounded-xl px-3 py-2 text-sm bg-white"
         >
           <option value="">Tous les mois</option>
           {MONTHS.map((m) => (
@@ -287,7 +313,7 @@ export default function FacturesPage() {
         <select
           value={fournisseur}
           onChange={(e) => setFournisseur(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
+          className="border border-[var(--color-border)] rounded-xl px-3 py-2 text-sm bg-white"
         >
           <option value="">Tous les fournisseurs</option>
           {filterOptions.suppliers.map((s) => (
@@ -296,91 +322,151 @@ export default function FacturesPage() {
         </select>
 
         {hasActiveFilters && (
-          <button onClick={clearFilters} className="text-sm text-blue-600 hover:underline">
+          <button onClick={clearFilters} className="text-sm text-primary hover:underline">
             Reinitialiser
           </button>
         )}
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-2">
+        <p className="text-sm text-danger bg-danger-tint border border-danger/20 rounded-xl px-4 py-2">
           {error}
         </p>
       )}
 
       {loading && (
-        <p className="text-sm text-gray-500">Chargement des factures...</p>
+        <p className="text-sm text-foreground/50">Chargement des factures...</p>
       )}
 
       {!loading && !error && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="card overflow-hidden">
           {factures.length === 0 ? (
-            <p className="text-sm text-gray-400 py-10 text-center">
+            <p className="text-sm text-foreground/40 py-10 text-center">
               {hasActiveFilters
                 ? "Aucune facture ne correspond a ces filtres"
                 : "Aucune facture pour le moment"}
             </p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500 border-b border-gray-100">
-                  <th className="px-5 py-3 font-medium">Fournisseur</th>
-                  <th className="px-5 py-3 font-medium">Date</th>
-                  <th className="px-5 py-3 font-medium">Montant HT</th>
-                  <th className="px-5 py-3 font-medium">TVA</th>
-                  <th className="px-5 py-3 font-medium">Montant TTC</th>
-                  <th className="px-5 py-3 font-medium">Categorie</th>
-                  <th className="px-5 py-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {factures.map((f) => (
-                  <tr key={f.id} className="border-b border-gray-50 last:border-0">
-                    <td className="px-5 py-3">{f.merchant}</td>
-                    <td className="px-5 py-3 text-gray-500">{formatDate(f.invoiceDate)}</td>
-                    <td className="px-5 py-3">{formatMad(f.montantHt)}</td>
-                    <td className="px-5 py-3">{formatMad(f.montantTva)}</td>
-                    <td className="px-5 py-3 font-medium">{formatMad(f.montantTtc)}</td>
-                    <td className="px-5 py-3 text-gray-500">{f.category}</td>
-                    <td className="px-5 py-3">
+            <>
+              <div className={`grid ${ROW_GRID} text-left text-foreground/50 border-b border-[var(--color-border)] text-sm`}>
+                <div className="px-5 py-3 font-medium">Fournisseur</div>
+                <div className="px-5 py-3 font-medium">N° Facture</div>
+                <div className="px-5 py-3 font-medium">Date</div>
+                <div className="px-5 py-3 font-medium">Montant HT</div>
+                <div className="px-5 py-3 font-medium">TVA</div>
+                <div className="px-5 py-3 font-medium">Montant TTC</div>
+                <div className="px-5 py-3 font-medium">Categorie</div>
+                <div className="px-5 py-3 font-medium text-right">Actions</div>
+              </div>
+
+              <AnimatedList<Facture>
+                items={paginatedFactures}
+                onItemSelect={(f) => openEdit(f)}
+                showGradients
+                enableArrowNavigation
+                displayScrollbar={false}
+                maxHeight={560}
+                renderItem={(f, i, isSelected) => (
+                  <div
+                    className={`grid ${ROW_GRID} items-center text-sm cursor-pointer border-b border-[var(--color-border)] last:border-0 transition-colors ${
+                      isSelected ? "bg-accent-tint" : "hover:bg-[var(--color-background)]"
+                    }`}
+                  >
+                    <div className="px-5 py-3 truncate">{f.merchant}</div>
+                    <div className="px-5 py-3 text-foreground/50 font-figures truncate">{f.numeroFacture || "-"}</div>
+                    <div className="px-5 py-3 text-foreground/50 font-figures">{formatDate(f.invoiceDate)}</div>
+                    <div className="px-5 py-3 font-figures">{formatMad(f.montantHt)}</div>
+                    <div className="px-5 py-3 font-figures">{formatMad(f.montantTva)}</div>
+                    <div className="px-5 py-3 font-medium font-figures">{formatMad(f.montantTtc)}</div>
+                    <div className="px-5 py-3 text-foreground/50 truncate">{f.category}</div>
+                    <div className="px-5 py-3">
                       <div className="flex items-center justify-end gap-3">
                         <button
-                          onClick={() => openEdit(f)}
-                          className="text-gray-400 hover:text-blue-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEdit(f);
+                          }}
+                          className="text-foreground/30 hover:text-primary transition-colors"
                           title="Modifier"
                         >
                           <Pencil size={16} />
                         </button>
                         <button
-                          onClick={() => deleteFacture(f)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteFacture(f);
+                          }}
                           disabled={deletingId === f.id}
-                          className="text-gray-400 hover:text-red-600 disabled:opacity-50"
+                          className="text-foreground/30 hover:text-danger transition-colors disabled:opacity-50"
                           title="Supprimer"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                )}
+              />
+
+              <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--color-border)] text-sm">
+                <p className="text-foreground/50">
+                  {factures.length} facture{factures.length > 1 ? "s" : ""} au total
+                  {totalPages > 1 && ` — page ${currentPage} / ${totalPages}`}
+                </p>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-1.5 rounded-lg border border-[var(--color-border)] text-foreground/50 hover:bg-[var(--color-background)] disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Page precedente"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p)}
+                        className={`w-8 h-8 rounded-lg text-sm font-figures transition-colors ${
+                          p === currentPage
+                            ? "bg-primary text-white"
+                            : "text-foreground/60 hover:bg-[var(--color-background)]"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-1.5 rounded-lg border border-[var(--color-border)] text-foreground/50 hover:bg-[var(--color-background)] disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label="Page suivante"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}
 
       {editingId !== null && editForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
+        <div className="fixed inset-0 bg-navy/40 flex items-center justify-center z-50 p-4">
+          <div className="card w-full max-w-lg p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-lg">Modifier la facture</h2>
-              <button onClick={closeEdit} className="text-gray-400 hover:text-gray-600">
+              <h2 className="font-display font-semibold text-lg text-navy">Modifier la facture</h2>
+              <button onClick={closeEdit} className="text-foreground/40 hover:text-foreground">
                 <X size={18} />
               </button>
             </div>
 
             {editError && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">
+              <p className="text-sm text-danger bg-danger-tint border border-danger/20 rounded-xl px-3 py-2 mb-4">
                 {editError}
               </p>
             )}
@@ -390,6 +476,11 @@ export default function FacturesPage() {
                 label="Fournisseur"
                 value={editForm.merchant}
                 onChange={(v) => updateEditField("merchant", v)}
+              />
+              <EditField
+                label="N° Facture"
+                value={editForm.numeroFacture}
+                onChange={(v) => updateEditField("numeroFacture", v)}
               />
               <EditField
                 label="Date"
@@ -425,11 +516,11 @@ export default function FacturesPage() {
                 suffix="MAD"
               />
               <div className="col-span-2">
-                <label className="text-sm text-gray-600 block mb-1">Categorie</label>
+                <label className="text-sm text-foreground/60 block mb-1">Categorie</label>
                 <select
                   value={editForm.category}
                   onChange={(e) => updateEditField("category", e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-[var(--color-border)] rounded-xl px-3 py-2 text-sm"
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>{c}</option>
@@ -442,14 +533,14 @@ export default function FacturesPage() {
               <button
                 onClick={closeEdit}
                 disabled={savingEdit}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-sm hover:bg-gray-50 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-[var(--color-border)] text-sm hover:bg-[var(--color-background)] disabled:opacity-50"
               >
                 Annuler
               </button>
               <button
                 onClick={saveEdit}
                 disabled={savingEdit}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-light text-white text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {savingEdit ? "Enregistrement..." : "Enregistrer"}
               </button>
@@ -476,17 +567,17 @@ function EditField({
 }) {
   return (
     <div>
-      <label className="text-sm text-gray-600 block mb-1">{label}</label>
+      <label className="text-sm text-foreground/60 block mb-1">{label}</label>
       <div className="relative">
         <input
           type={type}
           step={type === "number" ? "0.01" : undefined}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+          className="w-full border border-[var(--color-border)] rounded-xl px-3 py-2 text-sm font-figures"
         />
         {suffix && (
-          <span className="absolute right-3 top-2 text-xs text-gray-400">{suffix}</span>
+          <span className="absolute right-3 top-2 text-xs text-foreground/40">{suffix}</span>
         )}
       </div>
     </div>

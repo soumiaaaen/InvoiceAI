@@ -323,3 +323,11 @@ C:\Users\espacegamers.ma\SmartFactureTracker\backend\obj\Debug\net10.0\ref\Smart
 C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\BCrypt-Net-Next.dll
 C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
 C:\Users\espacegamers.ma\SmartFactureTracker\backend\obj\Debug\net10.0\SmartFactureTracker.sourcelink.json
+C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\ClosedXML.dll
+C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\ClosedXML.Parser.dll
+C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\DocumentFormat.OpenXml.dll
+C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\DocumentFormat.OpenXml.Framework.dll
+C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\ExcelNumberFormat.dll
+C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\RBush.dll
+C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\SixLabors.Fonts.dll
+C:\Users\espacegamers.ma\SmartFactureTracker\backend\bin\Debug\net10.0\System.IO.Packaging.dll

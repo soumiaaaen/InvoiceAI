@@ -25,29 +25,23 @@ namespace SmartFactureTracker.Models
         [Column(TypeName = "decimal(12,2)")]
         public decimal MontantTtc { get; set; }
 
+        [MaxLength(100)]
+        public string? NumeroFacture { get; set; }
+
         [Required]
         public FactureCategory Category { get; set; }
 
-        [MaxLength(1000)]
-        public string? Notes { get; set; }
-
-        // Chemin/nom du fichier facture stocke localement sur le serveur
+        // Chemin relatif (pas absolu) vers le fichier facture stocke
+        // localement sur le serveur, ex: "uploads/factures/xxx.pdf"
         [MaxLength(500)]
         public string? ReceiptFilePath { get; set; }
 
-        // Vrai si l'extraction automatique a echoue ou semble incoherente
-        // (ex: MontantHt == MontantTtc, indiquant une TVA non detectee)
-        // -> force une revue manuelle avant validation definitive
-        public bool NeedsManualReview { get; set; } = false;
-
-        // Vrai une fois que l'utilisateur a confirme/valide les donnees
-        // extraites - avant Confirmed, la facture est consideree "brouillon"
-        public bool IsConfirmed { get; set; } = false;
-
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Rempli uniquement lors d'une modification ulterieure -
+        // reste null a la creation, c'est normal
         public DateTime? UpdatedAt { get; set; }
 
-        // Relation avec l'utilisateur qui a ajoute la facture
         public int UserId { get; set; }
         public User? User { get; set; }
     }

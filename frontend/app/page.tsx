@@ -1,214 +1,108 @@
-"use client";
+import Link from "next/link";
+import Image from "next/image";
+import { Sparkles, FileText, BarChart3, ShieldCheck } from "lucide-react";
 
-import { useEffect, useState } from "react";
-import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { Wallet, FileStack, TrendingUp, Tags } from "lucide-react";
-import { authFetch } from "@/lib/auth";
-
-// A ajuster selon l'URL reelle de ton backend ASP.NET Core
-const API_BASE_URL = "http://localhost:5136";
-
-// Palette utilisee pour la repartition par categorie - cycle si plus
-// de couleurs que de categories presentes
-const CATEGORY_COLORS = [
-  "#1d4ed8", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe", "#dbeafe",
-  "#1e40af", "#2563eb", "#4f46e5", "#818cf8", "#a5b4fc", "#c7d2fe", "#e0e7ff",
+const FEATURES = [
+  {
+    icon: Sparkles,
+    title: "Extraction automatique par IA",
+    description:
+      "Televersez une facture (image ou PDF) et laissez l'IA extraire fournisseur, montants HT/TVA/TTC et categorie en quelques secondes.",
+  },
+  {
+    icon: FileText,
+    title: "Centralisation des factures",
+    description:
+      "Toutes vos factures fournisseurs au meme endroit, recherchables et filtrables par categorie, mois ou fournisseur.",
+  },
+  {
+    icon: BarChart3,
+    title: "Tableau de bord et rapports",
+    description:
+      "Suivez vos depenses par categorie et par fournisseur, avec export Excel en un clic.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Validation avant enregistrement",
+    description:
+      "Chaque extraction est presentee pour verification avant confirmation - vous gardez toujours le controle des donnees.",
+  },
 ];
 
-type CategoryBreakdown = { category: string; total: number };
-type MonthlyTotal = { month: string; total: number };
-type RecentFacture = {
-  id: number;
-  merchant: string;
-  invoiceDate: string;
-  montantTtc: number;
-  category: string;
-};
-
-type DashboardSummary = {
-  totalMonth: number;
-  totalFactures: number;
-  averageAmount: number;
-  topCategory: string;
-  topCategoryAmount: number;
-  categoryBreakdown: CategoryBreakdown[];
-  monthlyEvolution: MonthlyTotal[];
-  recentFactures: RecentFacture[];
-};
-
-function formatMad(value: number) {
-  return `${new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} MAD`;
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
-
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  sublabel,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  sublabel?: string;
-}) {
+export default function HomePage() {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-start gap-4">
-      <div className="w-11 h-11 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-        <Icon size={20} />
-      </div>
-      <div>
-        <p className="text-sm text-gray-500">{label}</p>
-        <p className="text-2xl font-semibold">{value}</p>
-        {sublabel && <p className="text-xs text-gray-400 mt-0.5">{sublabel}</p>}
-      </div>
-    </div>
-  );
-}
+    <div className="min-h-screen bg-[var(--color-background)]">
+      {/* Header */}
+      <header className="flex items-center justify-between px-8 py-6 max-w-6xl mx-auto">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center overflow-hidden shrink-0">
+            <Image src="/logo.png" alt="InvoiceAI" width={36} height={36} className="object-contain" />
+          </div>
+          <span className="font-display font-semibold text-lg text-navy">InvoiceAI</span>
+        </div>
 
-export default function DashboardPage() {
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+        <div className="flex items-center gap-3">
+          <Link
+            href="/login"
+            className="text-sm font-medium text-foreground/70 hover:text-navy transition-colors px-4 py-2"
+          >
+            Connexion
+          </Link>
+          <Link
+            href="/register"
+            className="text-sm font-medium bg-primary hover:bg-primary-light text-white px-4 py-2 rounded-xl transition-colors"
+          >
+            Creer un compte
+          </Link>
+        </div>
+      </header>
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadSummary() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await authFetch(`${API_BASE_URL}/api/dashboard/summary`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) throw new Error("Impossible de charger les donnees du tableau de bord.");
-        const data: DashboardSummary = await res.json();
-        setSummary(data);
-      } catch (e) {
-        if (e instanceof Error && e.name !== "AbortError") {
-          setError(e.message);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadSummary();
-    return () => controller.abort();
-  }, []);
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Bonjour,</h1>
-        <p className="text-gray-500 text-sm">
-          {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+      {/* Hero */}
+      <section className="max-w-4xl mx-auto text-center px-6 pt-16 pb-20">
+        <h1 className="font-display text-4xl sm:text-5xl font-semibold text-navy leading-tight">
+          La gestion de vos factures,
+          <br />
+          automatisee par l&apos;IA
+        </h1>
+        <p className="mt-5 text-lg text-foreground/60 max-w-2xl mx-auto">
+          InvoiceAI extrait, classe et centralise vos factures fournisseurs automatiquement -
+          fini la saisie manuelle.
         </p>
-      </div>
+        <div className="mt-8 flex items-center justify-center gap-4">
+          <Link
+            href="/register"
+            className="bg-primary hover:bg-primary-light text-white px-6 py-3 rounded-xl text-sm font-medium transition-colors"
+          >
+            Commencer gratuitement
+          </Link>
+          <Link
+            href="/login"
+            className="border border-[var(--color-border)] hover:bg-white text-navy px-6 py-3 rounded-xl text-sm font-medium transition-colors"
+          >
+            J&apos;ai deja un compte
+          </Link>
+        </div>
+      </section>
 
-      {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-2">
-          {error}
-        </p>
-      )}
-
-      {loading && !summary && (
-        <p className="text-sm text-gray-500">Chargement du tableau de bord...</p>
-      )}
-
-      {summary && (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <SummaryCard icon={Wallet} label="Total du mois" value={formatMad(summary.totalMonth)} />
-            <SummaryCard
-              icon={FileStack}
-              label="Nombre de factures"
-              value={summary.totalFactures.toString()}
-            />
-            <SummaryCard
-              icon={TrendingUp}
-              label="Montant moyen par facture"
-              value={formatMad(summary.averageAmount)}
-            />
-            <SummaryCard
-              icon={Tags}
-              label="Categorie la plus depensiere"
-              value={summary.topCategory}
-              sublabel={formatMad(summary.topCategoryAmount)}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h2 className="font-semibold mb-4">Repartition des depenses par categorie</h2>
-              {summary.categoryBreakdown.length === 0 ? (
-                <p className="text-sm text-gray-400 py-16 text-center">Aucune donnee pour le moment</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie
-                      data={summary.categoryBreakdown}
-                      dataKey="total"
-                      nameKey="category"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                    >
-                      {summary.categoryBreakdown.map((entry, i) => (
-                        <Cell key={entry.category} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => formatMad(Number(value))} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
+      {/* Features */}
+      <section className="max-w-5xl mx-auto px-6 pb-24">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {FEATURES.map(({ icon: Icon, title, description }) => (
+            <div key={title} className="card p-6">
+              <div className="w-11 h-11 rounded-xl bg-accent-tint text-primary flex items-center justify-center mb-4">
+                <Icon size={20} />
+              </div>
+              <h3 className="font-display font-semibold text-navy mb-2">{title}</h3>
+              <p className="text-sm text-foreground/60">{description}</p>
             </div>
+          ))}
+        </div>
+      </section>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h2 className="font-semibold mb-4">Evolution mensuelle des depenses</h2>
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={summary.monthlyEvolution}>
-                  <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} />
-                  <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(v) => `${v / 1000}k`} />
-                  <Tooltip formatter={(value) => formatMad(Number(value))} />
-                  <Line type="monotone" dataKey="total" stroke="#2563eb" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <h2 className="font-semibold p-5 pb-0">Factures recentes</h2>
-            {summary.recentFactures.length === 0 ? (
-              <p className="text-sm text-gray-400 py-10 text-center">Aucune facture pour le moment</p>
-            ) : (
-              <table className="w-full text-sm mt-4">
-                <thead>
-                  <tr className="text-left text-gray-500 border-b border-gray-100">
-                    <th className="px-5 py-2 font-medium">Fournisseur</th>
-                    <th className="px-5 py-2 font-medium">Date</th>
-                    <th className="px-5 py-2 font-medium">Montant TTC</th>
-                    <th className="px-5 py-2 font-medium">Categorie</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {summary.recentFactures.map((f) => (
-                    <tr key={f.id} className="border-b border-gray-50 last:border-0">
-                      <td className="px-5 py-3">{f.merchant}</td>
-                      <td className="px-5 py-3 text-gray-500">{formatDate(f.invoiceDate)}</td>
-                      <td className="px-5 py-3 font-medium">{formatMad(f.montantTtc)}</td>
-                      <td className="px-5 py-3 text-gray-500">{f.category}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </>
-      )}
+      {/* Footer */}
+      <footer className="text-center text-xs text-foreground/40 pb-8">
+        InvoiceAI — Projet de stage
+      </footer>
     </div>
   );
 }

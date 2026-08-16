@@ -41,9 +41,6 @@ namespace SmartFactureTracker.Migrations
                     b.Property<DateTime>("InvoiceDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<bool>("IsConfirmed")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Merchant")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -58,12 +55,9 @@ namespace SmartFactureTracker.Migrations
                     b.Property<decimal>("MontantTva")
                         .HasColumnType("decimal(12,2)");
 
-                    b.Property<bool>("NeedsManualReview")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                    b.Property<string>("NumeroFacture")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ReceiptFilePath")
                         .HasMaxLength(500)
@@ -102,10 +96,23 @@ namespace SmartFactureTracker.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal>("DefaultTvaRate")
+                        .HasColumnType("decimal(5,2)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("EmailConfirmationToken")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("EmailConfirmationTokenExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("bit");
 
                     b.Property<string>("FullName")
                         .IsRequired()

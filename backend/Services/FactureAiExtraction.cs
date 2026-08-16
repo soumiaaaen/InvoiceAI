@@ -41,6 +41,9 @@ namespace SmartFactureTracker.Services
         [JsonPropertyName("montant_ttc")]
         public decimal? MontantTtc { get; set; }
 
+        [JsonPropertyName("numero_facture")]
+        public string? NumeroFacture { get; set; }
+
         [JsonPropertyName("category")]
         public string? Category { get; set; }
 
@@ -78,7 +81,7 @@ namespace SmartFactureTracker.Services
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
         private const string ModelEndpoint =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent";
 
         public FactureAiService(HttpClient httpClient, IConfiguration configuration)
         {
@@ -207,6 +210,9 @@ namespace SmartFactureTracker.Services
                 - tva_rate: taux de TVA en pourcentage
                 - montant_tva: montant de la TVA
                 - montant_ttc: montant TTC final
+                - numero_facture: le numero/reference de la facture (souvent
+                  indique pres du haut du document, precede de "N°", "Facture N°",
+                  "Ref", "Invoice #", etc.). Si absent, retourne null.
                 - category: categorie choisie STRICTEMENT parmi cette liste : {{categories}}
 
                 Si un champ est illisible ou absent, retourne null pour ce champ (sauf
@@ -215,7 +221,7 @@ namespace SmartFactureTracker.Services
 
                 Reponds UNIQUEMENT avec un objet JSON valide, sans aucun texte avant
                 ou apres, exactement dans ce format :
-                {"merchant": "", "date": "YYYY-MM-DD", "montant_ht": 0.0, "tva_rate": 0.0, "montant_tva": 0.0, "montant_ttc": 0.0, "category": ""}
+                {"merchant": "", "date": "YYYY-MM-DD", "montant_ht": 0.0, "tva_rate": 0.0, "montant_tva": 0.0, "montant_ttc": 0.0, "numero_facture": "", "category": ""}
                 """;
         }
 

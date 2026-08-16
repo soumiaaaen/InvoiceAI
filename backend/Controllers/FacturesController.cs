@@ -10,9 +10,6 @@ using System.Security.Claims;
 
 namespace SmartFactureTracker.Controllers
 {
-    // DTO recu du frontend quand l'utilisateur clique "Confirmer"
-    // Recu en multipart/form-data (via [FromForm]) car un fichier
-    // est envoye en meme temps.
     public class ConfirmFactureRequest
     {
         public string Merchant { get; set; } = string.Empty;
@@ -21,10 +18,10 @@ namespace SmartFactureTracker.Controllers
         public decimal TvaRate { get; set; }
         public decimal MontantTva { get; set; }
         public decimal MontantTtc { get; set; }
+        public string? NumeroFacture { get; set; }
         public string Category { get; set; } = "Autre";
     }
 
-    // DTO recu du frontend lors de la modification d'une facture existante.
     public class EditFactureRequest
     {
         public string Merchant { get; set; } = string.Empty;
@@ -33,10 +30,10 @@ namespace SmartFactureTracker.Controllers
         public decimal TvaRate { get; set; }
         public decimal MontantTva { get; set; }
         public decimal MontantTtc { get; set; }
+        public string? NumeroFacture { get; set; }
         public string Category { get; set; } = "Autre";
     }
 
-    // Options disponibles pour alimenter les filtres du frontend
     public class FactureFiltersDto
     {
         public List<string> Categories { get; set; } = new();
@@ -147,6 +144,7 @@ namespace SmartFactureTracker.Controllers
                 TvaRate = request.TvaRate,
                 MontantTva = request.MontantTva,
                 MontantTtc = request.MontantTtc,
+                NumeroFacture = request.NumeroFacture,
                 Category = FactureCategoryExtensions.FromDisplayName(request.Category),
                 ReceiptFilePath = savedRelativePath,
                 UserId = currentUserId,
@@ -160,7 +158,6 @@ namespace SmartFactureTracker.Controllers
         }
 
         // GET api/factures?search=...&category=...&month=1-12&fournisseur=...
-        // Ne renvoie que les factures de l'utilisateur connecte.
         [HttpGet]
         public async Task<IActionResult> GetFactures(
             [FromQuery] string? search,
@@ -198,6 +195,7 @@ namespace SmartFactureTracker.Controllers
                     f.TvaRate,
                     f.MontantTva,
                     f.MontantTtc,
+                    f.NumeroFacture,
                     Category = f.Category.ToDisplayName(),
                     f.ReceiptFilePath
                 })
@@ -255,6 +253,7 @@ namespace SmartFactureTracker.Controllers
             facture.TvaRate = request.TvaRate;
             facture.MontantTva = request.MontantTva;
             facture.MontantTtc = request.MontantTtc;
+            facture.NumeroFacture = request.NumeroFacture;
             facture.Category = FactureCategoryExtensions.FromDisplayName(request.Category);
             facture.UpdatedAt = DateTime.UtcNow;
 
@@ -289,7 +288,6 @@ namespace SmartFactureTracker.Controllers
             return Ok(new { message = "Facture supprimee avec succes." });
         }
 
-        // Extrait l'Id utilisateur depuis le token JWT (claim "sub")
         private int GetCurrentUserId()
         {
             var sub = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value

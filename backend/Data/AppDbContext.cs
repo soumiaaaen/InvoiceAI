@@ -27,6 +27,10 @@ namespace SmartFactureTracker.Data
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
+            modelBuilder.Entity<User>()
+                .Property(u => u.DefaultTvaRate)
+                .HasColumnType("decimal(5,2)");
+
             // Relation User -> Factures (1-N)
             modelBuilder.Entity<Facture>()
                 .HasOne(f => f.User)

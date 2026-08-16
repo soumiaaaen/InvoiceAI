@@ -26,6 +26,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // --- Service IA (Gemini Flash) ---
 builder.Services.AddHttpClient<IFactureAiService, FactureAiService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // --- Authentification JWT ---
 var jwtKey = builder.Configuration["Jwt:Key"]

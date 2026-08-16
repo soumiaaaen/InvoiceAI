@@ -54,9 +54,12 @@ namespace SmartFactureTracker.Controllers
             _db = db;
         }
 
-        // GET api/dashboard/summary
+        // GET api/dashboard/summary?month=yyyy-MM
+        // Le parametre month controle le calcul de "Total du mois" et
+        // "Nombre de factures" (mois selectionne). Par defaut, le mois
+        // en cours si non fourni ou invalide.
         [HttpGet("summary")]
-        public async Task<IActionResult> GetSummary(CancellationToken ct)
+        public async Task<IActionResult> GetSummary([FromQuery] string? month, CancellationToken ct)
         {
             int currentUserId = GetCurrentUserId();
 
@@ -65,10 +68,22 @@ namespace SmartFactureTracker.Controllers
                 .ToListAsync(ct);
 
             var now = DateTime.UtcNow;
+            int selectedYear = now.Year;
+            int selectedMonth = now.Month;
 
-            var totalMonth = factures
-                .Where(f => f.InvoiceDate.Year == now.Year && f.InvoiceDate.Month == now.Month)
-                .Sum(f => f.MontantTtc);
+            if (!string.IsNullOrWhiteSpace(month) &&
+                DateTime.TryParseExact($"{month}-01", "yyyy-MM-dd", null,
+                    System.Globalization.DateTimeStyles.None, out var parsedMonth))
+            {
+                selectedYear = parsedMonth.Year;
+                selectedMonth = parsedMonth.Month;
+            }
+
+            var facturesForSelectedMonth = factures
+                .Where(f => f.InvoiceDate.Year == selectedYear && f.InvoiceDate.Month == selectedMonth)
+                .ToList();
+
+            var totalMonth = facturesForSelectedMonth.Sum(f => f.MontantTtc);
 
             var averageAmount = factures.Count > 0 ? factures.Average(f => f.MontantTtc) : 0;
 
@@ -113,7 +128,7 @@ namespace SmartFactureTracker.Controllers
             var summary = new DashboardSummaryDto
             {
                 TotalMonth = totalMonth,
-                TotalFactures = factures.Count,
+                TotalFactures = facturesForSelectedMonth.Count,
                 AverageAmount = averageAmount,
                 TopCategory = topCategory?.Category ?? "Aucune",
                 TopCategoryAmount = topCategory?.Total ?? 0,

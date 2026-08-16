@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -29,6 +30,25 @@ namespace SmartFactureTracker.Controllers
         public string FullName { get; set; } = string.Empty;
     }
 
+    public class ProfileResponse
+    {
+        public string Email { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public decimal DefaultTvaRate { get; set; }
+    }
+
+    public class UpdateProfileRequest
+    {
+        public string FullName { get; set; } = string.Empty;
+        public decimal DefaultTvaRate { get; set; }
+    }
+
+    public class ChangePasswordRequest
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
     [ApiController]
     [Route("api/auth")]
     public class AuthController : ControllerBase
@@ -43,6 +63,7 @@ namespace SmartFactureTracker.Controllers
         }
 
         // POST api/auth/register
+        // Cree le compte directement confirme (pas de verification email).
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken ct)
         {
@@ -55,28 +76,29 @@ namespace SmartFactureTracker.Controllers
             if (string.IsNullOrWhiteSpace(request.FullName))
                 return BadRequest(new { error = "Le nom complet est requis." });
 
-            var emailExists = await _db.Users.AnyAsync(u => u.Email == request.Email, ct);
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+
+            var emailExists = await _db.Users.AnyAsync(u => u.Email == normalizedEmail, ct);
             if (emailExists)
                 return Conflict(new { error = "Un compte existe deja avec cet email." });
 
             var user = new User
             {
-                Email = request.Email.Trim().ToLowerInvariant(),
+                Email = normalizedEmail,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 FullName = request.FullName.Trim(),
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                EmailConfirmed = true,
+                EmailConfirmationToken = null,
+                EmailConfirmationTokenExpiresAt = null
             };
 
             _db.Users.Add(user);
             await _db.SaveChangesAsync(ct);
 
-            var token = GenerateJwtToken(user);
-
-            return Ok(new AuthResponse
+            return Ok(new
             {
-                Token = token,
-                Email = user.Email,
-                FullName = user.FullName
+                message = "Compte cree avec succes. Vous pouvez vous connecter."
             });
         }
 
@@ -90,8 +112,6 @@ namespace SmartFactureTracker.Controllers
             var user = await _db.Users.FirstOrDefaultAsync(
                 u => u.Email == request.Email.Trim().ToLowerInvariant(), ct);
 
-            // Meme message d'erreur que l'email n'existe pas ou que le mot
-            // de passe soit faux - evite de reveler quels emails existent
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 return Unauthorized(new { error = "Email ou mot de passe incorrect." });
 
@@ -103,6 +123,76 @@ namespace SmartFactureTracker.Controllers
                 Email = user.Email,
                 FullName = user.FullName
             });
+        }
+
+        // GET api/auth/me
+        // Renvoie le profil de l'utilisateur connecte (pour la page Parametres)
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetProfile(CancellationToken ct)
+        {
+            var user = await _db.Users.FindAsync(new object?[] { GetCurrentUserId() }, ct);
+            if (user == null) return NotFound();
+
+            return Ok(new ProfileResponse
+            {
+                Email = user.Email,
+                FullName = user.FullName,
+                DefaultTvaRate = user.DefaultTvaRate
+            });
+        }
+
+        // PUT api/auth/profile
+        // Met a jour le nom complet et le taux de TVA par defaut
+        [HttpPut("profile")]
+        [Authorize]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(request.FullName))
+                return BadRequest(new { error = "Le nom complet est requis." });
+
+            if (request.DefaultTvaRate < 0 || request.DefaultTvaRate > 100)
+                return BadRequest(new { error = "Le taux de TVA doit etre compris entre 0 et 100." });
+
+            var user = await _db.Users.FindAsync(new object?[] { GetCurrentUserId() }, ct);
+            if (user == null) return NotFound();
+
+            user.FullName = request.FullName.Trim();
+            user.DefaultTvaRate = request.DefaultTvaRate;
+            await _db.SaveChangesAsync(ct);
+
+            return Ok(new { message = "Profil mis a jour avec succes." });
+        }
+
+        // POST api/auth/change-password
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+                return BadRequest(new { error = "Le nouveau mot de passe doit contenir au moins 6 caracteres." });
+
+            var user = await _db.Users.FindAsync(new object?[] { GetCurrentUserId() }, ct);
+            if (user == null) return NotFound();
+
+            if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+                return BadRequest(new { error = "Mot de passe actuel incorrect." });
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            await _db.SaveChangesAsync(ct);
+
+            return Ok(new { message = "Mot de passe modifie avec succes." });
+        }
+
+        private int GetCurrentUserId()
+        {
+            var sub = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (sub == null || !int.TryParse(sub, out var userId))
+                throw new UnauthorizedAccessException("Utilisateur non authentifie.");
+
+            return userId;
         }
 
         private string GenerateJwtToken(User user)
