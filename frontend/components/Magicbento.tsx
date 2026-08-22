@@ -3,7 +3,7 @@
 import React, {
   createContext,
   useContext,
-  useMemo,
+  useEffect,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
@@ -93,16 +93,24 @@ function BentoCard({ children, ...fx }: { children: ReactNode } & CardEffectProp
   const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
   const rippleId = useRef(0);
 
-  const stars = useMemo(
-    () =>
+  // Genere les positions aleatoires des particules uniquement cote client,
+  // apres le montage. Le faire pendant le rendu (ex: via useMemo) produirait
+  // des valeurs Math.random() differentes entre le rendu serveur et le
+  // rendu client, causant une erreur d'hydratation React.
+  const [stars, setStars] = useState<
+    { top: number; left: number; delay: number; duration: number }[]
+  >([]);
+
+  useEffect(() => {
+    setStars(
       Array.from({ length: particleCount }, () => ({
         top: Math.random() * 100,
         left: Math.random() * 100,
         delay: Math.random() * 2,
         duration: 1.5 + Math.random() * 2,
-      })),
-    [particleCount]
-  );
+      }))
+    );
+  }, [particleCount]);
 
   const handleMouseMove = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (disableAnimations || !cardRef.current) return;

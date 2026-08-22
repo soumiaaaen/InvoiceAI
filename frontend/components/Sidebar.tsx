@@ -50,7 +50,7 @@ export default function Sidebar() {
     <aside className="w-64 h-screen fixed top-0 left-0 bg-navy text-white flex flex-col shrink-0 overflow-y-auto">
       <div className="px-6 py-6 flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center overflow-hidden shrink-0">
-          <Image src="/logo.png" alt="InvoiceAI" width={22} height={22} className="object-contain" />
+          <Image src="/logo.jpg" alt="InvoiceAI" width={22} height={22} className="object-contain" />
         </div>
         <span className="font-display font-semibold text-lg leading-tight tracking-tight">
           InvoiceAI
