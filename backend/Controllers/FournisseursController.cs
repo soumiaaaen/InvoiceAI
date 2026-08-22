@@ -3,9 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartFactureTracker.Data;
-using SmartFactureTracker.Models;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 
 namespace SmartFactureTracker.Controllers
 {
@@ -31,15 +28,15 @@ namespace SmartFactureTracker.Controllers
         }
 
         // GET api/fournisseurs/summary
-        // Montant total, nombre de factures et derniere facture par
-        // fournisseur - alimente la page /fournisseurs.
-        // Ne renvoie que les fournisseurs de l'utilisateur connecte.
         [HttpGet("summary")]
         public async Task<IActionResult> GetSummary(CancellationToken ct)
         {
             int currentUserId = GetCurrentUserId();
 
+            // Include(Category) necessaire ici aussi : liste materialisee
+            // en memoire avant le regroupement par categorie dominante.
             var factures = await _db.Factures
+                .Include(f => f.Category)
                 .Where(f => f.UserId == currentUserId)
                 .ToListAsync(ct);
 
@@ -52,11 +49,10 @@ namespace SmartFactureTracker.Controllers
                     TotalTtc = g.Sum(f => f.MontantTtc),
                     LastInvoiceDate = g.Max(f => f.InvoiceDate),
                     TopCategory = g
-                        .GroupBy(f => f.Category)
+                        .GroupBy(f => f.Category?.Name ?? "Non classee")
                         .OrderByDescending(cg => cg.Count())
                         .First()
                         .Key
-                        .ToDisplayName()
                 })
                 .OrderByDescending(s => s.TotalTtc)
                 .ToList();
@@ -65,9 +61,6 @@ namespace SmartFactureTracker.Controllers
         }
 
         // GET api/fournisseurs/export?month=2026-08
-        // Genere un fichier Excel : montant paye par fournisseur (avec sa
-        // categorie dominante) pour le mois choisi, + une ligne total.
-        // "month" doit etre au format yyyy-MM.
         [HttpGet("export")]
         public async Task<IActionResult> Export([FromQuery] string month, CancellationToken ct)
         {
@@ -85,6 +78,7 @@ namespace SmartFactureTracker.Controllers
             int currentUserId = GetCurrentUserId();
 
             var factures = await _db.Factures
+                .Include(f => f.Category)
                 .Where(f => f.UserId == currentUserId
                     && f.InvoiceDate >= monthStart
                     && f.InvoiceDate < monthEnd)
@@ -97,11 +91,10 @@ namespace SmartFactureTracker.Controllers
                     Merchant = g.Key,
                     TotalTtc = g.Sum(f => f.MontantTtc),
                     TopCategory = g
-                        .GroupBy(f => f.Category)
+                        .GroupBy(f => f.Category?.Name ?? "Non classee")
                         .OrderByDescending(cg => cg.Count())
                         .First()
                         .Key
-                        .ToDisplayName()
                 })
                 .OrderByDescending(r => r.TotalTtc)
                 .ToList();
@@ -152,8 +145,8 @@ namespace SmartFactureTracker.Controllers
 
         private int GetCurrentUserId()
         {
-            var sub = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
-                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var sub = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
             if (sub == null || !int.TryParse(sub, out var userId))
                 throw new UnauthorizedAccessException("Utilisateur non authentifie.");

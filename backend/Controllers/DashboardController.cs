@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartFactureTracker.Data;
-using SmartFactureTracker.Models;
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -55,15 +54,15 @@ namespace SmartFactureTracker.Controllers
         }
 
         // GET api/dashboard/summary?month=yyyy-MM
-        // Le parametre month controle le calcul de "Total du mois" et
-        // "Nombre de factures" (mois selectionne). Par defaut, le mois
-        // en cours si non fourni ou invalide.
         [HttpGet("summary")]
         public async Task<IActionResult> GetSummary([FromQuery] string? month, CancellationToken ct)
         {
             int currentUserId = GetCurrentUserId();
 
+            // Include(Category) necessaire : la liste est materialisee en
+            // memoire ci-dessous, sans ca la navigation resterait null.
             var factures = await _db.Factures
+                .Include(f => f.Category)
                 .Where(f => f.UserId == currentUserId)
                 .ToListAsync(ct);
 
@@ -88,7 +87,7 @@ namespace SmartFactureTracker.Controllers
             var averageAmount = factures.Count > 0 ? factures.Average(f => f.MontantTtc) : 0;
 
             var categoryBreakdown = factures
-                .GroupBy(f => f.Category.ToDisplayName())
+                .GroupBy(f => f.Category?.Name ?? "Non classee")
                 .Select(g => new CategoryBreakdownDto { Category = g.Key, Total = g.Sum(f => f.MontantTtc) })
                 .OrderByDescending(c => c.Total)
                 .ToList();
@@ -121,7 +120,7 @@ namespace SmartFactureTracker.Controllers
                     Merchant = f.Merchant,
                     InvoiceDate = f.InvoiceDate,
                     MontantTtc = f.MontantTtc,
-                    Category = f.Category.ToDisplayName()
+                    Category = f.Category?.Name ?? "Non classee"
                 })
                 .ToList();
 

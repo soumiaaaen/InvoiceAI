@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\espacegamers.ma\\SmartFactureTracker\\backend\\SmartFactureTracker.csproj": {}
+    "C:\\stage_2a\\backend\\SmartFactureTracker.csproj": {}
   },
   "projects": {
-    "C:\\Users\\espacegamers.ma\\SmartFactureTracker\\backend\\SmartFactureTracker.csproj": {
+    "C:\\stage_2a\\backend\\SmartFactureTracker.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\espacegamers.ma\\SmartFactureTracker\\backend\\SmartFactureTracker.csproj",
+        "projectUniqueName": "C:\\stage_2a\\backend\\SmartFactureTracker.csproj",
         "projectName": "SmartFactureTracker",
-        "projectPath": "C:\\Users\\espacegamers.ma\\SmartFactureTracker\\backend\\SmartFactureTracker.csproj",
+        "projectPath": "C:\\stage_2a\\backend\\SmartFactureTracker.csproj",
         "packagesPath": "C:\\Users\\espacegamers.ma\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\espacegamers.ma\\SmartFactureTracker\\backend\\obj\\",
+        "outputPath": "C:\\stage_2a\\backend\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\espacegamers.ma\\AppData\\Roaming\\NuGet\\NuGet.Config"

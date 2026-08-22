@@ -18,13 +18,14 @@ namespace SmartFactureTracker.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // --- Verification d'email ---
+        // Champs inutilises depuis le retrait de la confirmation d'email
+        // obligatoire (voir PASSATION_PROJET.md) - conserves dans le schema
+        // sans migration destructrice, EmailConfirmed reste toujours true.
         public bool EmailConfirmed { get; set; } = false;
 
-        // Token unique envoye par email, verifie a la confirmation
         [MaxLength(200)]
         public string? EmailConfirmationToken { get; set; }
 
-        // Le token expire pour eviter qu'un lien reste valide indefiniment
         public DateTime? EmailConfirmationTokenExpiresAt { get; set; }
 
         // --- Preferences ---

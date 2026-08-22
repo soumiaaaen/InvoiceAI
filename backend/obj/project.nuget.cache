@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "T6q168bB9+o=",
+  "dgSpecHash": "Zrps3QJqzdc=",
   "success": true,
-  "projectFilePath": "C:\\Users\\espacegamers.ma\\SmartFactureTracker\\backend\\SmartFactureTracker.csproj",
+  "projectFilePath": "C:\\stage_2a\\backend\\SmartFactureTracker.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\espacegamers.ma\\.nuget\\packages\\azure.core\\1.47.1\\azure.core.1.47.1.nupkg.sha512",
     "C:\\Users\\espacegamers.ma\\.nuget\\packages\\azure.identity\\1.14.2\\azure.identity.1.14.2.nupkg.sha512",

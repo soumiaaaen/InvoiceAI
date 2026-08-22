@@ -9,18 +9,11 @@ namespace SmartFactureTracker.Data
 
         public DbSet<User> Users => Set<User>();
         public DbSet<Facture> Factures => Set<Facture>();
+        public DbSet<Category> Categories => Set<Category>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
-            // Stocke l'enum Category comme texte lisible en base
-            // (plus facile a lire/debugger directement dans SQL Server
-            // qu'un simple entier)
-            modelBuilder.Entity<Facture>()
-                .Property(f => f.Category)
-                .HasConversion<string>()
-                .HasMaxLength(50);
 
             // Email unique
             modelBuilder.Entity<User>()
@@ -38,16 +31,37 @@ namespace SmartFactureTracker.Data
                 .HasForeignKey(f => f.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Index utile pour les recherches par date / categorie
-            // (correspond aux fonctionnalites de recherche prevues)
+            // Relation User -> Categories (1-N) - chaque categorie appartient
+            // a un seul utilisateur, supprimee si le compte est supprime
+            modelBuilder.Entity<Category>()
+                .HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Pas deux categories avec le meme nom pour un meme utilisateur
+            modelBuilder.Entity<Category>()
+                .HasIndex(c => new { c.UserId, c.Name })
+                .IsUnique();
+
+            // Relation Facture -> Category (N-1), optionnelle. Si la
+            // categorie est supprimee, la facture repasse "non classee"
+            // (CategoryId = null) plutot que d'etre supprimee ou bloquee.
+            modelBuilder.Entity<Facture>()
+                .HasOne(f => f.Category)
+                .WithMany()
+                .HasForeignKey(f => f.CategoryId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            // Index utile pour les recherches par date / fournisseur
             modelBuilder.Entity<Facture>()
                 .HasIndex(f => f.InvoiceDate);
 
             modelBuilder.Entity<Facture>()
-                .HasIndex(f => f.Category);
+                .HasIndex(f => f.Merchant);
 
             modelBuilder.Entity<Facture>()
-                .HasIndex(f => f.Merchant);
+                .HasIndex(f => f.CategoryId);
         }
     }
 }

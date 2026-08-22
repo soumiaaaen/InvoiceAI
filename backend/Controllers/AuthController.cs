@@ -15,6 +15,11 @@ namespace SmartFactureTracker.Controllers
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
+
+        // Categories tapees librement par l'utilisateur a l'inscription
+        // (ex: "Loyer", "Matieres premieres", "Marketing"...). Au moins
+        // une categorie est requise - pas de liste fixe par defaut.
+        public List<string> Categories { get; set; } = new();
     }
 
     public class LoginRequest
@@ -35,6 +40,7 @@ namespace SmartFactureTracker.Controllers
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public decimal DefaultTvaRate { get; set; }
+        public List<CategoryResponse> Categories { get; set; } = new();
     }
 
     public class UpdateProfileRequest
@@ -63,7 +69,6 @@ namespace SmartFactureTracker.Controllers
         }
 
         // POST api/auth/register
-        // Cree le compte directement confirme (pas de verification email).
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken ct)
         {
@@ -75,6 +80,21 @@ namespace SmartFactureTracker.Controllers
 
             if (string.IsNullOrWhiteSpace(request.FullName))
                 return BadRequest(new { error = "Le nom complet est requis." });
+
+            // Nettoie la liste : trim, retire les vides, deduplique
+            // (insensible a la casse) - au moins une categorie valide requise
+            var cleanedCategories = (request.Categories ?? new List<string>())
+                .Select(c => c?.Trim() ?? string.Empty)
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .GroupBy(c => c.ToLowerInvariant())
+                .Select(g => g.First())
+                .ToList();
+
+            if (cleanedCategories.Count == 0)
+                return BadRequest(new { error = "Ajoutez au moins une categorie de depenses." });
+
+            if (cleanedCategories.Any(c => c.Length > 100))
+                return BadRequest(new { error = "Le nom d'une categorie doit faire moins de 100 caracteres." });
 
             var normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
@@ -88,17 +108,29 @@ namespace SmartFactureTracker.Controllers
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 FullName = request.FullName.Trim(),
                 CreatedAt = DateTime.UtcNow,
-                EmailConfirmed = true,
-                EmailConfirmationToken = null,
-                EmailConfirmationTokenExpiresAt = null
+                EmailConfirmed = true
             };
 
             _db.Users.Add(user);
+            await _db.SaveChangesAsync(ct); // necessaire pour obtenir user.Id avant de creer les categories
+
+            var categories = cleanedCategories.Select(name => new Category
+            {
+                UserId = user.Id,
+                Name = name,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            _db.Categories.AddRange(categories);
             await _db.SaveChangesAsync(ct);
 
-            return Ok(new
+            var token = GenerateJwtToken(user);
+
+            return Ok(new AuthResponse
             {
-                message = "Compte cree avec succes. Vous pouvez vous connecter."
+                Token = token,
+                Email = user.Email,
+                FullName = user.FullName
             });
         }
 
@@ -126,24 +158,30 @@ namespace SmartFactureTracker.Controllers
         }
 
         // GET api/auth/me
-        // Renvoie le profil de l'utilisateur connecte (pour la page Parametres)
         [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> GetProfile(CancellationToken ct)
         {
-            var user = await _db.Users.FindAsync(new object?[] { GetCurrentUserId() }, ct);
+            var userId = GetCurrentUserId();
+            var user = await _db.Users.FindAsync(new object?[] { userId }, ct);
             if (user == null) return NotFound();
+
+            var categories = await _db.Categories
+                .Where(c => c.UserId == userId)
+                .OrderBy(c => c.Name)
+                .Select(c => new CategoryResponse { Id = c.Id, Name = c.Name })
+                .ToListAsync(ct);
 
             return Ok(new ProfileResponse
             {
                 Email = user.Email,
                 FullName = user.FullName,
-                DefaultTvaRate = user.DefaultTvaRate
+                DefaultTvaRate = user.DefaultTvaRate,
+                Categories = categories
             });
         }
 
         // PUT api/auth/profile
-        // Met a jour le nom complet et le taux de TVA par defaut
         [HttpPut("profile")]
         [Authorize]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request, CancellationToken ct)
@@ -163,6 +201,10 @@ namespace SmartFactureTracker.Controllers
 
             return Ok(new { message = "Profil mis a jour avec succes." });
         }
+
+        // Note : la gestion des categories apres inscription (ajout,
+        // renommage, suppression) se fait desormais via CategoriesController
+        // (GET/POST/PUT/DELETE api/categories), pas ici.
 
         // POST api/auth/change-password
         [HttpPost("change-password")]

@@ -28,8 +28,11 @@ namespace SmartFactureTracker.Models
         [MaxLength(100)]
         public string? NumeroFacture { get; set; }
 
-        [Required]
-        public FactureCategory Category { get; set; }
+        // Categorie personnalisee de l'utilisateur - nullable : une facture
+        // reste "non classee" si aucune correspondance n'a ete trouvee a
+        // l'extraction, ou si la categorie a ete supprimee depuis.
+        public int? CategoryId { get; set; }
+        public Category? Category { get; set; }
 
         // Chemin relatif (pas absolu) vers le fichier facture stocke
         // localement sur le serveur, ex: "uploads/factures/xxx.pdf"

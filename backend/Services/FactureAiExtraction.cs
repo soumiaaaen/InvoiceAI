@@ -13,7 +13,6 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using SmartFactureTracker.Models;
 
 namespace SmartFactureTracker.Services
 {
@@ -44,6 +43,9 @@ namespace SmartFactureTracker.Services
         [JsonPropertyName("numero_facture")]
         public string? NumeroFacture { get; set; }
 
+        // Nom de la categorie choisie par l'IA parmi les categories de
+        // l'utilisateur (texte libre, correspond a Category.Name cote DB).
+        // Peut etre null si aucune categorie ne correspond.
         [JsonPropertyName("category")]
         public string? Category { get; set; }
 
@@ -73,7 +75,7 @@ namespace SmartFactureTracker.Services
     // ---------------------------------------------------------
     public interface IFactureAiService
     {
-        Task<ExtractedFactureDto> ExtractAndClassifyAsync(byte[] fileBytes, string mimeType, CancellationToken ct = default);
+        Task<ExtractedFactureDto> ExtractAndClassifyAsync(byte[] fileBytes, string mimeType, List<string> categoryNames, CancellationToken ct = default);
     }
 
     public class FactureAiService : IFactureAiService
@@ -81,7 +83,7 @@ namespace SmartFactureTracker.Services
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
         private const string ModelEndpoint =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent";
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent";
 
         public FactureAiService(HttpClient httpClient, IConfiguration configuration)
         {
@@ -91,13 +93,13 @@ namespace SmartFactureTracker.Services
         }
 
         public async Task<ExtractedFactureDto> ExtractAndClassifyAsync(
-            byte[] fileBytes, string mimeType, CancellationToken ct = default)
+            byte[] fileBytes, string mimeType, List<string> categoryNames, CancellationToken ct = default)
         {
             if (fileBytes == null || fileBytes.Length == 0)
                 throw new ArgumentException("Le fichier est vide.", nameof(fileBytes));
 
             string base64File = Convert.ToBase64String(fileBytes);
-            string prompt = BuildPrompt();
+            string prompt = BuildPrompt(categoryNames);
 
             var requestBody = new
             {
@@ -181,11 +183,14 @@ namespace SmartFactureTracker.Services
         // Prompt sent to Gemini - extraction + classification
         // in a single call. Matches the version validated via
         // PowerShell tests (HT / TVA rate / TVA amount / TTC).
+        // La liste de categories est desormais entierement propre
+        // a l'utilisateur (texte libre, plus d'enum fixe).
         // -----------------------------------------------------
-        private static string BuildPrompt()
+        private static string BuildPrompt(List<string> categoryNames)
         {
-            string categories = string.Join(", ", Enum.GetValues<FactureCategory>()
-                .Select(c => c.ToDisplayName()));
+            string categoryInstruction = categoryNames.Count > 0
+                ? $"- category: categorie choisie STRICTEMENT parmi cette liste : {string.Join(", ", categoryNames)}. Si aucune categorie ne correspond bien, retourne null."
+                : "- category: aucune categorie n'est disponible pour cet utilisateur, retourne toujours null pour ce champ.";
 
             return $$"""
                 Tu es un expert-comptable qui analyse des factures fournisseurs
@@ -213,11 +218,9 @@ namespace SmartFactureTracker.Services
                 - numero_facture: le numero/reference de la facture (souvent
                   indique pres du haut du document, precede de "N°", "Facture N°",
                   "Ref", "Invoice #", etc.). Si absent, retourne null.
-                - category: categorie choisie STRICTEMENT parmi cette liste : {{categories}}
+                {{categoryInstruction}}
 
-                Si un champ est illisible ou absent, retourne null pour ce champ (sauf
-                category, pour laquelle tu dois choisir "Autre" si aucune categorie ne
-                correspond).
+                Si un champ est illisible ou absent, retourne null pour ce champ.
 
                 Reponds UNIQUEMENT avec un objet JSON valide, sans aucun texte avant
                 ou apres, exactement dans ce format :

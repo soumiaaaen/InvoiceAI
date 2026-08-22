@@ -1,25 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { UploadCloud, Sparkles, CheckCircle2, ExternalLink, FileText } from "lucide-react";
+import { UploadCloud, Sparkles, CheckCircle2 } from "lucide-react";
 import { authFetch } from "@/lib/auth";
-
-const CATEGORIES = [
-  "Matieres premieres",
-  "Accessoires et garnitures",
-  "Emballage",
-  "Transport et logistique",
-  "Machines et equipements",
-  "Maintenance et reparations",
-  "Utilites",
-  "Fournitures de bureau",
-  "Services professionnels",
-  "Loyer et installations",
-  "Marketing et ventes",
-  "Taxes et frais administratifs",
-  "Autre",
-];
 
 type FactureForm = {
   merchant: string;
@@ -35,15 +19,10 @@ type FactureForm = {
 // A ajuster selon l'URL reelle de ton backend ASP.NET Core
 const API_BASE_URL = "http://localhost:5136";
 
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} o`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
-}
-
 export default function UploadFacturePage() {
   const router = useRouter();
 
+  const [categories, setCategories] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,14 +31,30 @@ export default function UploadFacturePage() {
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState<FactureForm | null>(null);
 
-  // Garde une reference vers l'URL objet courante pour pouvoir la revoquer
-  // proprement (evite les fuites memoire) des qu'un nouveau fichier arrive
-  // ou que le composant est demonte.
+  // Revoque proprement l'ancien object URL a chaque changement de fichier
+  // / au demontage, pour eviter les fuites memoire.
   const previewUrlRef = useRef<string | null>(null);
   useEffect(() => {
     return () => {
       if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     };
+  }, []);
+
+  // Charge les categories de l'utilisateur (creees a l'inscription,
+  // modifiables dans Parametres) pour la liste deroulante. GET /api/auth/me
+  // renvoie desormais "categories": [{ id, name }, ...] - pas une liste de
+  // strings "selectedCategories" comme avant.
+  useEffect(() => {
+    authFetch(`${API_BASE_URL}/api/auth/me`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.categories) && data.categories.length > 0) {
+          setCategories(data.categories.map((c: { name: string }) => c.name));
+        }
+      })
+      .catch(() => {
+        // Non bloquant - la liste reste vide si l'appel echoue
+      });
   }, []);
 
   const updateField = (key: keyof FactureForm, value: string) => {
@@ -106,7 +101,7 @@ export default function UploadFacturePage() {
         montantTva: data.montant_tva?.toString() ?? "",
         montantTtc: data.montant_ttc?.toString() ?? "",
         numeroFacture: data.numero_facture ?? "",
-        category: data.category ?? "Autre",
+        category: data.category ?? categories[0] ?? "",
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur inconnue.");
@@ -195,7 +190,7 @@ export default function UploadFacturePage() {
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
-        className="border-2 border-dashed border-primary/30 rounded-2xl bg-accent-tint/40 py-16 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-accent-tint/60 transition-colors"
+        className="border-2 border-dashed border-primary/30 rounded-2xl bg-accent-tint/40 py-16 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-accent-tint transition-colors"
         onClick={() => document.getElementById("file-input")?.click()}
       >
         <UploadCloud className="text-primary mb-3" size={36} />
@@ -230,37 +225,15 @@ export default function UploadFacturePage() {
       {form && !saved && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
           <div className="card p-3">
-            {/* Barre d'info : nom du fichier, taille, ouverture en plein onglet */}
-            {file && (
-              <div className="flex items-center justify-between px-2 py-1.5 mb-2 text-xs text-foreground/50">
-                <span className="flex items-center gap-1.5 truncate">
-                  <FileText size={13} className="shrink-0" />
-                  <span className="truncate">{file.name}</span>
-                  <span className="shrink-0">· {formatFileSize(file.size)}</span>
-                </span>
-                {previewUrl && (
-                  <a
-                    href={previewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-primary hover:underline shrink-0 ml-2"
-                  >
-                    <ExternalLink size={13} />
-                    Ouvrir
-                  </a>
-                )}
-              </div>
-            )}
-
             {isPdf && previewUrl ? (
               <iframe
                 src={previewUrl}
                 title="Apercu facture"
-                className="w-full rounded-lg border border-[var(--color-border)]"
+                className="w-full rounded-xl border border-[var(--color-border)]"
                 style={{ height: 520 }}
               />
             ) : isImage && previewUrl ? (
-              <img src={previewUrl} alt="Apercu facture" className="rounded-lg w-full" />
+              <img src={previewUrl} alt="Apercu facture" className="rounded-xl w-full" />
             ) : (
               <div className="h-64 flex items-center justify-center text-foreground/40 text-sm">
                 {file?.name}
@@ -276,7 +249,7 @@ export default function UploadFacturePage() {
 
             {needsReview && (
               <div className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-4">
-                La TVA n'a pas ete detectee automatiquement - verifiez les montants avant de confirmer.
+                La TVA n&apos;a pas ete detectee automatiquement - verifiez les montants avant de confirmer.
               </div>
             )}
 
@@ -326,15 +299,21 @@ export default function UploadFacturePage() {
               />
               <div className="col-span-2">
                 <label className="text-sm text-foreground/60 block mb-1">Categorie</label>
-                <select
-                  value={form.category}
-                  onChange={(e) => updateField("category", e.target.value)}
-                  className="w-full border border-[var(--color-border)] rounded-xl px-3 py-2 text-sm"
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                {categories.length === 0 ? (
+                  <p className="text-xs text-foreground/40 border border-[var(--color-border)] rounded-xl px-3 py-2">
+                    Aucune categorie definie. Ajoutez-en depuis Parametres.
+                  </p>
+                ) : (
+                  <select
+                    value={form.category}
+                    onChange={(e) => updateField("category", e.target.value)}
+                    className="w-full border border-[var(--color-border)] rounded-xl px-3 py-2 text-sm"
+                  >
+                    {categories.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 

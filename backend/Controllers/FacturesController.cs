@@ -19,7 +19,10 @@ namespace SmartFactureTracker.Controllers
         public decimal MontantTva { get; set; }
         public decimal MontantTtc { get; set; }
         public string? NumeroFacture { get; set; }
-        public string Category { get; set; } = "Autre";
+        // Nom de la categorie (texte libre) - doit correspondre a une
+        // categorie existante de l'utilisateur, sinon la facture est
+        // enregistree "non classee" plutot que rejetee.
+        public string? Category { get; set; }
     }
 
     public class EditFactureRequest
@@ -31,7 +34,7 @@ namespace SmartFactureTracker.Controllers
         public decimal MontantTva { get; set; }
         public decimal MontantTtc { get; set; }
         public string? NumeroFacture { get; set; }
-        public string Category { get; set; } = "Autre";
+        public string? Category { get; set; }
     }
 
     public class FactureFiltersDto
@@ -80,9 +83,17 @@ namespace SmartFactureTracker.Controllers
             await file.CopyToAsync(memoryStream, ct);
             byte[] fileBytes = memoryStream.ToArray();
 
+            // Utilise uniquement les categories creees par l'utilisateur
+            // pour la classification IA (texte libre, plus d'enum fixe)
+            int currentUserId = GetCurrentUserId();
+            var categoryNames = await _db.Categories
+                .Where(c => c.UserId == currentUserId)
+                .Select(c => c.Name)
+                .ToListAsync(ct);
+
             try
             {
-                var result = await _aiService.ExtractAndClassifyAsync(fileBytes, file.ContentType, ct);
+                var result = await _aiService.ExtractAndClassifyAsync(fileBytes, file.ContentType, categoryNames, ct);
                 return Ok(result);
             }
             catch (FactureExtractionException ex)
@@ -117,6 +128,8 @@ namespace SmartFactureTracker.Controllers
 
             int currentUserId = GetCurrentUserId();
 
+            int? categoryId = await ResolveCategoryIdAsync(currentUserId, request.Category, ct);
+
             string? savedRelativePath = null;
 
             if (file != null && file.Length > 0)
@@ -145,7 +158,7 @@ namespace SmartFactureTracker.Controllers
                 MontantTva = request.MontantTva,
                 MontantTtc = request.MontantTtc,
                 NumeroFacture = request.NumeroFacture,
-                Category = FactureCategoryExtensions.FromDisplayName(request.Category),
+                CategoryId = categoryId,
                 ReceiptFilePath = savedRelativePath,
                 UserId = currentUserId,
                 CreatedAt = DateTime.UtcNow
@@ -173,10 +186,7 @@ namespace SmartFactureTracker.Controllers
                 query = query.Where(f => f.Merchant.Contains(search));
 
             if (!string.IsNullOrWhiteSpace(category))
-            {
-                var parsedCategory = FactureCategoryExtensions.FromDisplayName(category);
-                query = query.Where(f => f.Category == parsedCategory);
-            }
+                query = query.Where(f => f.Category != null && f.Category.Name == category);
 
             if (month is >= 1 and <= 12)
                 query = query.Where(f => f.InvoiceDate.Month == month.Value);
@@ -196,7 +206,7 @@ namespace SmartFactureTracker.Controllers
                     f.MontantTva,
                     f.MontantTtc,
                     f.NumeroFacture,
-                    Category = f.Category.ToDisplayName(),
+                    Category = f.Category != null ? f.Category.Name : "Non classee",
                     f.ReceiptFilePath
                 })
                 .ToListAsync(ct);
@@ -205,15 +215,18 @@ namespace SmartFactureTracker.Controllers
         }
 
         // GET api/factures/filters
+        // Renvoie toutes les categories de l'utilisateur (pas seulement
+        // celles deja utilisees) pour que le filtre reste a jour des
+        // qu'une categorie est creee, meme sans facture encore associee.
         [HttpGet("filters")]
         public async Task<IActionResult> GetFilters(CancellationToken ct)
         {
             int currentUserId = GetCurrentUserId();
 
-            var categories = await _db.Factures
-                .Where(f => f.UserId == currentUserId)
-                .Select(f => f.Category)
-                .Distinct()
+            var categories = await _db.Categories
+                .Where(c => c.UserId == currentUserId)
+                .OrderBy(c => c.Name)
+                .Select(c => c.Name)
                 .ToListAsync(ct);
 
             var suppliers = await _db.Factures
@@ -224,7 +237,7 @@ namespace SmartFactureTracker.Controllers
 
             var result = new FactureFiltersDto
             {
-                Categories = categories.Select(c => c.ToDisplayName()).OrderBy(c => c).ToList(),
+                Categories = categories,
                 Suppliers = suppliers.OrderBy(s => s).ToList()
             };
 
@@ -254,7 +267,7 @@ namespace SmartFactureTracker.Controllers
             facture.MontantTva = request.MontantTva;
             facture.MontantTtc = request.MontantTtc;
             facture.NumeroFacture = request.NumeroFacture;
-            facture.Category = FactureCategoryExtensions.FromDisplayName(request.Category);
+            facture.CategoryId = await ResolveCategoryIdAsync(currentUserId, request.Category, ct);
             facture.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync(ct);
@@ -286,6 +299,21 @@ namespace SmartFactureTracker.Controllers
             await _db.SaveChangesAsync(ct);
 
             return Ok(new { message = "Facture supprimee avec succes." });
+        }
+
+        // Retrouve l'Id de la categorie de l'utilisateur correspondant au
+        // nom recu (insensible a la casse). Renvoie null si aucun nom
+        // n'est fourni ou si aucune categorie ne correspond - la facture
+        // est alors enregistree "non classee" plutot que rejetee.
+        private async Task<int?> ResolveCategoryIdAsync(int userId, string? categoryName, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(categoryName))
+                return null;
+
+            var category = await _db.Categories.FirstOrDefaultAsync(
+                c => c.UserId == userId && c.Name.ToLower() == categoryName.ToLower(), ct);
+
+            return category?.Id;
         }
 
         private int GetCurrentUserId()
