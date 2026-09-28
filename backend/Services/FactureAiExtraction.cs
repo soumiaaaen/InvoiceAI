@@ -83,7 +83,7 @@ namespace SmartFactureTracker.Services
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
         private const string ModelEndpoint =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent";
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent";
 
         public FactureAiService(HttpClient httpClient, IConfiguration configuration)
         {
