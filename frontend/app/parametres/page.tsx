@@ -77,7 +77,8 @@ export default function ParametresPage() {
 
       // Met a jour le nom affiche dans la sidebar (stocke localement)
       const token = getToken();
-      if (token) saveAuth(token, { email, fullName });
+      if (token) saveAuth(token, { email: email, fullName: fullName, role: data.role });
+         
 
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 3000);

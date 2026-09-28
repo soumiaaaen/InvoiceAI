@@ -9,6 +9,11 @@ const USER_KEY = "smart_facture_user";
 export type StoredUser = {
   email: string;
   fullName: string;
+  // "User" ou "Admin" - renvoye par le backend a la connexion/inscription
+  // et par /api/auth/me. Utilise cote client pour afficher/masquer le
+  // lien Administration - la vraie protection reste cote serveur
+  // ([Authorize(Roles = "Admin")] sur AdminController).
+  role: string;
 };
 
 export function saveAuth(token: string, user: StoredUser) {
@@ -36,9 +41,15 @@ export function isAuthenticated(): boolean {
   return getToken() !== null;
 }
 
+// Pratique pour les guards de page et l'affichage conditionnel du lien
+// Administration dans la Sidebar.
+export function isAdmin(): boolean {
+  return getStoredUser()?.role === "Admin";
+}
+
 // Wrapper autour de fetch qui ajoute automatiquement le header
 // Authorization: Bearer <token> - a utiliser pour tous les appels
-// vers les routes protegees (/api/factures/*, /api/dashboard/*)
+// vers les routes protegees (/api/factures/*, /api/dashboard/*, /api/admin/*)
 export async function authFetch(url: string, options: RequestInit = {}) {
   const token = getToken();
   const headers = new Headers(options.headers);

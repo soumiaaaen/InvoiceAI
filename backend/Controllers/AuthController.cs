@@ -33,6 +33,7 @@ namespace SmartFactureTracker.Controllers
         public string Token { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
+        public string Role { get; set; } = "User";
     }
 
     public class ProfileResponse
@@ -40,6 +41,7 @@ namespace SmartFactureTracker.Controllers
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public decimal DefaultTvaRate { get; set; }
+        public string Role { get; set; } = "User";
         public List<CategoryResponse> Categories { get; set; } = new();
     }
 
@@ -69,6 +71,9 @@ namespace SmartFactureTracker.Controllers
         }
 
         // POST api/auth/register
+        // Cree toujours un compte avec Role = "User" - il n'existe
+        // volontairement aucun moyen de s'auto-promouvoir admin depuis
+        // l'inscription.
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken ct)
         {
@@ -81,8 +86,6 @@ namespace SmartFactureTracker.Controllers
             if (string.IsNullOrWhiteSpace(request.FullName))
                 return BadRequest(new { error = "Le nom complet est requis." });
 
-            // Nettoie la liste : trim, retire les vides, deduplique
-            // (insensible a la casse) - au moins une categorie valide requise
             var cleanedCategories = (request.Categories ?? new List<string>())
                 .Select(c => c?.Trim() ?? string.Empty)
                 .Where(c => !string.IsNullOrWhiteSpace(c))
@@ -108,11 +111,12 @@ namespace SmartFactureTracker.Controllers
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 FullName = request.FullName.Trim(),
                 CreatedAt = DateTime.UtcNow,
-                EmailConfirmed = true
+                EmailConfirmed = true,
+                Role = "User"
             };
 
             _db.Users.Add(user);
-            await _db.SaveChangesAsync(ct); // necessaire pour obtenir user.Id avant de creer les categories
+            await _db.SaveChangesAsync(ct);
 
             var categories = cleanedCategories.Select(name => new Category
             {
@@ -130,7 +134,8 @@ namespace SmartFactureTracker.Controllers
             {
                 Token = token,
                 Email = user.Email,
-                FullName = user.FullName
+                FullName = user.FullName,
+                Role = user.Role
             });
         }
 
@@ -153,7 +158,8 @@ namespace SmartFactureTracker.Controllers
             {
                 Token = token,
                 Email = user.Email,
-                FullName = user.FullName
+                FullName = user.FullName,
+                Role = user.Role
             });
         }
 
@@ -177,6 +183,7 @@ namespace SmartFactureTracker.Controllers
                 Email = user.Email,
                 FullName = user.FullName,
                 DefaultTvaRate = user.DefaultTvaRate,
+                Role = user.Role,
                 Categories = categories
             });
         }
@@ -201,10 +208,6 @@ namespace SmartFactureTracker.Controllers
 
             return Ok(new { message = "Profil mis a jour avec succes." });
         }
-
-        // Note : la gestion des categories apres inscription (ajout,
-        // renommage, suppression) se fait desormais via CategoriesController
-        // (GET/POST/PUT/DELETE api/categories), pas ici.
 
         // POST api/auth/change-password
         [HttpPost("change-password")]
@@ -250,6 +253,9 @@ namespace SmartFactureTracker.Controllers
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
                 new Claim("fullName", user.FullName),
+                // ClaimTypes.Role est le type de claim que [Authorize(Roles = "...")]
+                // verifie par defaut cote ASP.NET Core - necessaire pour AdminController.
+                new Claim(ClaimTypes.Role, user.Role),
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));

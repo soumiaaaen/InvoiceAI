@@ -3,11 +3,11 @@
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { clearAuth, getStoredUser } from "@/lib/auth";
+import { clearAuth, getStoredUser, isAdmin } from "@/lib/auth";
 import { useEffect, useState } from "react";
 import LineSidebar from "./LineSidebar";
 
-const navItems = [
+const baseNavItems = [
   { href: "/dashboard", label: "Tableau de bord" },
   { href: "/factures", label: "Factures" },
   { href: "/factures/nouvelle", label: "Ajouter une facture" },
@@ -15,15 +15,24 @@ const navItems = [
   { href: "/parametres", label: "Parametres" },
 ];
 
+const adminNavItem = { href: "/admin", label: "Administration" };
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [userName, setUserName] = useState<string>("");
+  const [showAdminLink, setShowAdminLink] = useState(false);
 
   useEffect(() => {
     const user = getStoredUser();
     if (user) setUserName(user.fullName);
+    setShowAdminLink(isAdmin());
   }, []);
+
+  // Le lien Administration n'apparait que pour un compte Admin - la
+  // veritable protection reste cote serveur ([Authorize(Roles = "Admin")]
+  // sur AdminController), ceci n'est qu'un confort d'affichage.
+  const navItems = showAdminLink ? [...baseNavItems, adminNavItem] : baseNavItems;
 
   const handleLogout = () => {
     clearAuth();
@@ -39,8 +48,6 @@ export default function Sidebar() {
         .toUpperCase()
     : "";
 
-  // LineSidebar is uncontrolled internally but accepts activeIndex to stay
-  // in sync with the actual route (e.g. after using browser back/forward).
   const activeIndex = Math.max(
     0,
     navItems.findIndex((item) => item.href === pathname)

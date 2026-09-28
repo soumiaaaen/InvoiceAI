@@ -15,6 +15,12 @@ namespace SmartFactureTracker.Models
         [Required, MaxLength(150)]
         public string FullName { get; set; } = string.Empty;
 
+        // "User" (par defaut) ou "Admin". Jamais modifiable via
+        // l'inscription - seul un changement direct en base (ou via un
+        // admin existant, non implemente) peut promouvoir un compte.
+        [Required, MaxLength(20)]
+        public string Role { get; set; } = "User";
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // --- Verification d'email ---
